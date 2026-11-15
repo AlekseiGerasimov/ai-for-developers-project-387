@@ -1,5 +1,32 @@
 # Meeting topic: implementation evidence
 
+## Combined integration verification
+
+On `675a9b69a503dba31d23af46b13aac067bb7d9e9`, `mise run check` passed:
+56 JVM tests (0 failures/errors), 23 frontend tests, generation/lint/typecheck/build,
+and 14 desktop/mobile browser scenarios. The two-axis independent `code-review`
+reported Standards: 0 findings; Spec: 1 confirmed budget admission defect in #11,
+with no confirmed defects in #4/#5/#6. The budget defect is handled separately
+with a fresh implementer and regression tests, recorded in issue-11 evidence.
+
+An additional browser check, separate from the implementation sessions, used the
+isolated E2E JAR built by that check. It recorded exact git HEAD, screenshot and
+trace for both scenarios: booking with topic → confirmation → reload → owner
+sees topic; and booking without topic → confirmation/reload → owner sees meeting.
+Both passed at `675a9b6`. At baseline `0901ca8` the topic scenario failed because
+the topic input was absent, while the no-topic scenario passed. Local artifacts
+are ignored `.cache/evidence/independent/<SHA>/`; these supplement, rather than
+replace, the final Actions browser artifact at the final PR head SHA.
+
+The first checkpoint draft is [PR #12](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/pull/12).
+Its separate [automatic review](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/actions/runs/43740339479)
+successfully published the then-correct finding that #6 was still pending, and
+identified the missing final CI/artifact evidence. #6 was subsequently implemented
+in its own worktree and merged. That review did not trigger the implementation.
+The initial PR CI [passed](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/actions/runs/43740339496).
+Final automatic issue-to-PR publication and review-comment correction cycle remain
+separate verification steps; the timed-out initial source run is not reported as success.
+
 Specification: [#4](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/4).
 Guest implementation: [#5](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/5).
 [Human approval](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/3#issuecomment-6897584732)
