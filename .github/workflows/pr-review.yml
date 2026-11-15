@@ -18,7 +18,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association) ||
        github.event.pull_request.user.login == 'opencode[bot]' ||
-       github.event.pull_request.user.login == 'opencode-agent' ||
+       github.event.pull_request.user.login == 'opencode-agent[bot]' ||
        github.event.pull_request.user.login == 'github-actions[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 15

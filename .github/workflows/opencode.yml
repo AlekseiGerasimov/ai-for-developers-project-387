@@ -54,8 +54,14 @@ jobs:
               }
             }
             core.setOutput('allowed', 'true');
+      # Stable history marker used by pr-budget.cjs; guard success alone can reject.
+      - name: Record admitted command
+        if: steps.guard.outputs.allowed == 'true'
+        run: echo 'Command admitted'
 
   opencode:
+    outputs:
+      budget_reason: ${{ steps.budget.outputs.reason }}
     needs: authorize
     if: needs.authorize.outputs.allowed == 'true'
     runs-on: ubuntu-latest
@@ -87,11 +93,15 @@ jobs:
             const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
               ...context.repo, workflow_id: current.workflow_id, per_page: 100,
             });
-            const count = require('./.github/scripts/pr-budget.cjs')(runs, current, number);
+            const count = await require('./.github/scripts/pr-budget.cjs')(runs, current, number,
+              run => github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                ...context.repo, run_id: run.id, filter: 'all', per_page: 100,
+              }));
             core.notice(`PR #${number}: ${count}/3 attempts`);
             if (count > 3) {
               await github.rest.issues.createComment({...context.repo, issue_number: number,
                 body: `нужен человек: limit_exhausted\nSHA: ${pr.head.sha}\nЛоги: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`});
+              core.setOutput('reason', 'limit_exhausted');
               core.setFailed('limit_exhausted');
             }
       - name: Verify project context
@@ -147,15 +157,16 @@ jobs:
       pull-requests: read
     steps:
       - uses: actions/github-script@v8
+        env:
+          BUDGET_REASON: ${{ needs.opencode.outputs.budget_reason }}
         with:
           script: |
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
               ...context.repo, run_id: context.runId, per_page: 100,
             });
             const job = jobs.find(j => j.name === 'opencode');
-            const budget = job?.steps?.find(s => s.name === 'Check PR budget');
             // The budget step already reports limit_exhausted.
-            if (budget?.conclusion === 'failure') return;
+            if (process.env.BUDGET_REASON === 'limit_exhausted') return;
             const agent = job?.steps?.find(s => s.name === 'Run agent');
             const elapsed = agent?.completed_at && agent?.started_at ?
               Date.parse(agent.completed_at) - Date.parse(agent.started_at) : 0;
