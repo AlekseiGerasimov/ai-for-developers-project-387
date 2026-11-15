@@ -21,7 +21,7 @@ permissions; код PR не исполняется. Комментарий пу�
 Ревью получает contents/issues/actions/checks/statuses: read и pull-requests: write.
 Допускаются только публичный репозиторий, его собственные ветки и доверенные
 авторы OWNER/MEMBER/COLLABORATOR либо явно разрешённые `opencode[bot]`,
-`opencode-agent` (автор ответа установленного приложения в issue #3) и
+`opencode-agent[bot]` (REST login автора ответа установленного приложения в issue #3) и
 `github-actions[bot]`. Если установленное приложение имеет другой login, владелец
 должен проверить его и обновить allowlist. Fork не получает секрет модели.
 Тайм-аут задания 15 минут, модели 10 минут; concurrency отменяет устаревшее ревью.

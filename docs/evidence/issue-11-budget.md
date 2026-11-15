@@ -54,6 +54,10 @@ and pull requests». Таким образом, токен App также не �
 Это подтверждение владельца в чате, а не результат доступного агенту API:
 текущий пользовательский токен не позволяет читать установки App.
 
+REST API комментария `6897489545` вернул `user.login=opencode-agent[bot]`, type=Bot.
+Именно этот login указан в allowlist авторевью. GraphQL/gh показывал сокращённое
+имя `opencode-agent`, которое не совпадает с login в payload события PR.
+
 Для main создан активный ruleset `27320716`: обязательный успешный `check`,
 strict_required_status_checks_policy=true. Ранее main не был защищён (GET protection
 возвращал Branch not protected). Новое правило добавлено отдельно, без перезаписи
