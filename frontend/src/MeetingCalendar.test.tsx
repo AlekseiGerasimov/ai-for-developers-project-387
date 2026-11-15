@@ -42,6 +42,7 @@ test('booking uses selected slot and restores confirmation after reload without 
         startsAt: '2026-11-17T06:00:00.000Z',
         guestName: 'Гость',
         guestEmail: 'Guest@example.com',
+        topic: '  <b>Тема разговора</b>  ',
       })
       return Response.json(
         {
@@ -50,6 +51,7 @@ test('booking uses selected slot and restores confirmation after reload without 
           ...availability.slots[0],
           guestName: 'Гость',
           guestEmail: 'Guest@example.com',
+          topic: '<b>Тема разговора</b>',
         },
         { status: 201 },
       )
@@ -63,12 +65,18 @@ test('booking uses selected slot and restores confirmation after reload without 
   fireEvent.change(screen.getByLabelText('Email'), {
     target: { value: 'Guest@example.com' },
   })
+  fireEvent.change(screen.getByLabelText('Тема разговора (необязательно)'), {
+    target: { value: '  <b>Тема разговора</b>  ' },
+  })
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }))
   expect(await screen.findByText('Встреча подтверждена')).toBeVisible()
   cleanup()
   openCalendar()
   expect(await screen.findByText('Встреча подтверждена')).toBeVisible()
   expect(screen.getByText('Guest@example.com')).toBeVisible()
+  expect(
+    screen.getByText('Тема разговора: <b>Тема разговора</b>'),
+  ).toBeVisible()
   expect(
     fetch.mock.calls.filter(([, init]) => init?.method === 'POST'),
   ).toHaveLength(1)
@@ -171,6 +179,9 @@ async function fillBooking() {
   fireEvent.change(screen.getByLabelText('Email'), {
     target: { value: 'Guest@example.com' },
   })
+  fireEvent.change(screen.getByLabelText('Тема разговора (необязательно)'), {
+    target: { value: 'Черновик темы' },
+  })
 }
 
 test.each(['SLOT_TAKEN', 'SLOT_EXPIRED', 'INVALID_SLOT'])(
@@ -264,7 +275,10 @@ test('field errors stay near inputs and draft reload preserves fields without se
         return Response.json(
           {
             code: 'VALIDATION_ERROR',
-            fieldErrors: [{ field: 'guestEmail', message: 'Проверьте адрес' }],
+            fieldErrors: [
+              { field: 'guestEmail', message: 'Проверьте адрес' },
+              { field: 'topic', message: 'Проверьте тему' },
+            ],
           },
           { status: 400 },
         )
@@ -275,6 +289,10 @@ test('field errors stay near inputs and draft reload preserves fields without se
   await fillBooking()
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }))
   expect(await screen.findByText('Проверьте адрес')).toBeVisible()
+  expect(screen.getByText('Проверьте тему')).toBeVisible()
+  expect(screen.getByLabelText('Тема разговора (необязательно)')).toHaveValue(
+    'Черновик темы',
+  )
   expect(screen.getByLabelText('Email')).toHaveValue('Guest@example.com')
   cleanup()
   openCalendar()
@@ -284,6 +302,9 @@ test('field errors stay near inputs and draft reload preserves fields without se
   expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: '09:00–09:20' }))
   expect(screen.getByLabelText('Email')).toHaveValue('Guest@example.com')
+  expect(screen.getByLabelText('Тема разговора (необязательно)')).toHaveValue(
+    'Черновик темы',
+  )
 })
 
 test('guest can book with 100 Unicode characters in their name but not 101', async () => {

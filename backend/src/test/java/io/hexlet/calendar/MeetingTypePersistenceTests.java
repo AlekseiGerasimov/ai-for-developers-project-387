@@ -24,6 +24,7 @@ class MeetingTypePersistenceTests {
             "--spring.profiles.active=e2e"};
         var oldSchemaArgs = new String[] {args[0], args[1], args[2], "--spring.flyway.target=2"};
         String created;
+        String savedWithTopic;
         try (var client = HttpClient.newHttpClient()) {
             try (var context = SpringApplication.run(CalendarApplication.class, oldSchemaArgs)) {
                 var port = ((WebServerApplicationContext) context).getWebServer().getPort();
@@ -34,34 +35,37 @@ class MeetingTypePersistenceTests {
                                 """)).build(), HttpResponse.BodyHandlers.ofString());
                 var mapper = context.getBean(tools.jackson.databind.ObjectMapper.class);
                 var id = mapper.readTree(type.body()).get("id").asString();
-                var response = client.send(HttpRequest.newBuilder()
-                        .uri(URI.create("http://localhost:" + port + "/api/meetings"))
-                        .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(
-                                "{\"meetingTypeId\":\"" + id + "\",\"startsAt\":\"2026-11-17T07:00:00Z\","
-                                + "\"guestName\":\"Гость\",\"guestEmail\":\"Guest@example.com\"}"))
-                        .build(), HttpResponse.BodyHandlers.ofString());
-                assertEquals(201, response.statusCode());
-                created = response.body();
+                // Arrange a row written by the previous application on its V2 schema.
+                context.getBean(org.springframework.jdbc.core.JdbcTemplate.class).update("""
+                        INSERT INTO meetings VALUES (?, ?, ?, ?, ?, ?)
+                        """, "00000000-0000-0000-0000-000000000040", id,
+                        "2026-11-17T07:00:00Z", "2026-11-17T07:20:00Z", "Гость", "Guest@example.com");
+                created = mapper.writeValueAsString(java.util.Map.of(
+                        "id", "00000000-0000-0000-0000-000000000040", "meetingType", mapper.readTree(type.body()),
+                        "startsAt", "2026-11-17T07:00:00Z", "endsAt", "2026-11-17T07:20:00Z",
+                        "guestName", "Гость", "guestEmail", "Guest@example.com"));
             }
             try (var context = SpringApplication.run(CalendarApplication.class, args)) {
                 var port = ((WebServerApplicationContext) context).getWebServer().getPort();
                 var uri = URI.create("http://localhost:" + port + "/api/meetings");
                 var response = client.send(HttpRequest.newBuilder().uri(uri).GET().build(),
                         HttpResponse.BodyHandlers.ofString());
-                assertEquals("[" + created + "]", response.body());
                 var mapper = context.getBean(tools.jackson.databind.ObjectMapper.class);
+                assertEquals(mapper.readTree("[" + created + "]"), mapper.readTree(response.body()));
                 var name = "𐐀".repeat(100);
                 var unicode = client.send(HttpRequest.newBuilder().uri(uri)
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(java.util.Map.of(
                                 "meetingTypeId", mapper.readTree(created).get("meetingType").get("id").asString(),
                                 "startsAt", "2026-11-18T07:00:00Z", "guestName", name,
-                                "guestEmail", "Guest@example.com"))))
+                                "guestEmail", "Guest@example.com", "topic", "𐐀".repeat(500)))))
                         .build(), HttpResponse.BodyHandlers.ofString());
                 assertEquals(201, unicode.statusCode());
                 var upcoming = client.send(HttpRequest.newBuilder().uri(uri).GET().build(),
                         HttpResponse.BodyHandlers.ofString());
-                assertEquals("[" + created + "," + unicode.body() + "]", upcoming.body());
+                assertEquals(mapper.readTree("[" + created + "," + unicode.body() + "]"),
+                        mapper.readTree(upcoming.body()));
+                savedWithTopic = unicode.body();
                 assertEquals(name, mapper.readTree(unicode.body()).get("guestName").asString());
                 context.getBean(HikariDataSource.class).close();
                 var failed = client.send(HttpRequest.newBuilder().uri(uri).header("Content-Type", "application/json")
@@ -71,6 +75,17 @@ class MeetingTypePersistenceTests {
                                 """)).build(), HttpResponse.BodyHandlers.ofString());
                 assertEquals(503, failed.statusCode());
                 org.junit.jupiter.api.Assertions.assertTrue(failed.body().contains("SERVICE_UNAVAILABLE"));
+            }
+            try (var context = SpringApplication.run(CalendarApplication.class, args)) {
+                var port = ((WebServerApplicationContext) context).getWebServer().getPort();
+                var response = client.send(HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + port + "/api/meetings")).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                var mapper = context.getBean(tools.jackson.databind.ObjectMapper.class);
+                assertEquals(200, response.statusCode());
+                assertEquals(mapper.readTree("[" + created + "," + savedWithTopic + "]"),
+                        mapper.readTree(response.body()));
+                assertEquals("𐐀".repeat(500), mapper.readTree(response.body()).get(1).get("topic").asString());
             }
         }
     }

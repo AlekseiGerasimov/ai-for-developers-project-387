@@ -5,6 +5,7 @@ import {
   Stack,
   Text,
   TextInput,
+  Textarea,
   Title,
 } from '@mantine/core'
 import { useEffect, useMemo, useState } from 'react'
@@ -109,6 +110,11 @@ export default function MeetingCalendar({ id }: { id: string }) {
         </Text>
         <Text>{meeting.guestName}</Text>
         <Text>{meeting.guestEmail}</Text>
+        {meeting.topic && (
+          <Text style={{ whiteSpace: 'pre-wrap' }}>
+            Тема разговора: {meeting.topic}
+          </Text>
+        )}
         <Button onClick={booking.restart}>Записаться ещё</Button>
         <Anchor href="/meetings">В каталог</Anchor>
       </Stack>
@@ -232,6 +238,17 @@ export default function MeetingCalendar({ id }: { id: string }) {
                 }
                 error={booking.errors.guestEmail}
                 disabled={booking.pending}
+              />
+              <Textarea
+                label="Тема разговора (необязательно)"
+                description="До 500 символов"
+                value={booking.topic}
+                onChange={(event) =>
+                  booking.setTopic(event.currentTarget.value)
+                }
+                error={booking.errors.topic}
+                disabled={booking.pending}
+                rows={3}
               />
               <Button type="submit" disabled={booking.pending}>
                 {booking.pending ? 'Запись…' : 'Подтвердить запись'}

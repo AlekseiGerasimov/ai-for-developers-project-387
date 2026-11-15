@@ -35,6 +35,10 @@ export interface CreateMeeting {
      *
      */
     guestEmail: string;
+    /**
+     * Optional plain text, trimmed before validating at most 500 Unicode code points. Blank means absent.
+     */
+    topic?: string;
 }
 
 /**
@@ -62,6 +66,7 @@ export function CreateMeetingFromJSONTyped(json: any, ignoreDiscriminator: boole
         'startsAt': (json['startsAt'] == null ? json['startsAt'] : parseDateTime(json['startsAt'])),
         'guestName': json['guestName'],
         'guestEmail': json['guestEmail'],
+        'topic': json['topic'] == null ? undefined : json['topic'],
     };
 }
 
@@ -80,5 +85,6 @@ export function CreateMeetingToJSONTyped(value?: CreateMeeting | null, ignoreDis
         'startsAt': value['startsAt'] == null ? value['startsAt'] : serializeDateTime(value['startsAt']),
         'guestName': value['guestName'],
         'guestEmail': value['guestEmail'],
+        'topic': value['topic'],
     };
 }

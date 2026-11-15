@@ -303,6 +303,9 @@ components:
           type: string
         guestEmail:
           type: string
+        topic:
+          type: string
+          description: Optional plain text, trimmed before validating at most 500 Unicode code points. Blank means absent.
     CreateMeetingType:
       type: object
       required:
@@ -368,6 +371,9 @@ components:
         guestEmail:
           type: string
           maxLength: 254
+        topic:
+          type: string
+          description: Plain text topic, at most 500 Unicode code points; omitted when absent.
     MeetingType:
       type: object
       required:
