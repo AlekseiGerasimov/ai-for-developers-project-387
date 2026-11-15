@@ -3,6 +3,61 @@
 Приложение перенесено из проекта 386. [Исходная спецификация и решения](docs/agents/project-origin.md).
 Текущий трекер: https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues.
 
+## Агент в GitHub
+
+Workflow [opencode.yml](.github/workflows/opencode.yml) вызывает OpenCode для разбора
+issue, подготовки спецификаций и тикетов, реализации и правок PR. OpenCode выбран
+как готовая интеграция с GitHub; модель задаётся отдельно: `openai/gpt-6.1-sol`.
+Команды `mentions: /opencode,/oc` указаны явно. `share: false` отключает публикацию
+сессий; ответы в публичных issue и логи Actions остаются видимыми.
+
+События: `issue_comment` (issue и обсуждения PR) и `pull_request_review_comment`
+(строки diff), только `types: [created]`. Команды принимаются отдельным словом,
+без учёта регистра, от `OWNER`, `MEMBER`, `COLLABORATOR` с типом аккаунта `User`.
+Комментарии ботов, отредактированные комментарии и PR из fork не вызывают модель.
+Источник PR проверяется через API даже для комментариев доверенного автора.
+
+Предварительное задание `authorize` имеет только чтение contents, issues и PR,
+тайм-аут 2 минуты; оно проверяет также доступ к текущему issue. Задание агента
+имеет `contents: read`, `id-token: write`, checkout с `persist-credentials: false`.
+Ответы, ветки и PR агент публикует с правами GitHub App через OIDC.
+Тайм-аут агента — 20 минут; `concurrency` допускает один активный запуск на номер
+issue/PR (`cancel-in-progress: false`). Новый запуск не прерывает текущий;
+GitHub может заменить ожидающий запуск при нескольких новых командах.
+
+Чистый раннер получает проектные скиллы из `.agents/skills/`: OpenCode обнаруживает
+этот каталог автоматически. Перед запуском проверяются `to-spec`, `to-tickets`,
+`implement-spec`, `AGENTS.md` и настройки в `docs/agents/`. Через mise устанавливаются
+версии инструментов проекта, npm-зависимости и Chromium для браузерных тестов.
+Основная проверка: `mise run check`; отдельно тесты — `mise run test`, линтеры —
+`mise run lint`. Трекер — [Issues проекта 387](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues).
+
+### Подключение и проверка
+
+1. Установите [GitHub App opencode-agent](https://github.com/apps/opencode-agent)
+   только на репозиторий `AlekseiGerasimov/ai-for-developers-project-387`.
+2. В [Settings → Secrets and variables → Actions](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/settings/secrets/actions)
+   добавьте `OPENAI_API_KEY` с доступом к выбранной модели. Ключ хранится только в
+   Secrets; в issue, файлы или чат его не вставляйте. Доступность модели зависит
+   от проекта OpenAI. При желании настройте бюджет у провайдера.
+3. Проверьте события, права, модель, `mentions` и `share` в workflow перед первым вызовом.
+4. Создайте проверочное issue с просьбой прочитать `AGENTS.md` и `docs/agents/`,
+   назвать трекер, скиллы и команду проверок. Оставьте комментарий `/oc explain this issue`.
+   Для спецификации пример команды: `/oc запусти скилл to-spec по обсуждению этого issue`.
+5. Результат — комментарий приложения в том же issue/PR; выполнение и ошибки —
+   в [Actions → OpenCode](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/actions/workflows/opencode.yml).
+   Сводка запуска содержит трекер, основные скиллы и команды проверок.
+
+Остановить текущую работу: Actions → OpenCode → запуск → Cancel workflow.
+Отключить новые запуски: меню workflow → Disable workflow. Уже отправленный запрос
+к модели может продолжиться у провайдера; при необходимости отзовите ключ.
+GitHub App и ключ подключаются владельцем отдельно; наличие workflow само по себе
+не подтверждает успешный ответ модели.
+
+Источники: [GitHub integration](https://opencode.ai/docs/github/),
+[обнаружение скиллов](https://opencode.ai/docs/skills/),
+[модель OpenAI](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
+
 ## Docker и публикация
 
 Сборка из корня репозитория и запуск с автоматическим стартом приложения:
