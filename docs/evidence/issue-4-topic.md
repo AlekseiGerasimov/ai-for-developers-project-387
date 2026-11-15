@@ -74,3 +74,60 @@ six columns, then verify no-topic booking and old rows through HTTP. This retain
 stored topics. Dropping the column loses topics; restoring a backup can also lose
 newer meetings. Neither is automatically a safe rollback. No rollback was run
 against user data.
+
+## Ticket #6
+
+Executed locally on Windows on 2026-11-15 in `.cache/worktrees/ticket-6`,
+branch `implement/6-owner-topic`, based on integration commit
+`44ece4ef9798e1661ee6f1413f09f477777cb1dd` (includes #5). These runs tested
+the working tree with the changes recorded in this commit; they are not claims
+of a clean committed SHA run. Full `mise run check` is reserved for the combined
+integration branch.
+
+Owner cards now show nonblank topics as React text, preserve newlines and use
+the existing card wrapping for long text. Missing topics produce no label.
+The owner loading, error, retry, order and date formatting code is unchanged.
+
+### Red → green
+
+The existing real-browser owner journey now runs both with and without a topic
+on desktop and mobile: type creation → guest booking → confirmation/reload →
+owner list/reload → refresh → navigation back. Assertions locate the specific
+meeting by its type title and check name, email, Moscow date/time and topic.
+The long topic contains literal `<b>` tags and supplementary Unicode; the test
+checks that no `b` element exists, only the matching card contains that topic,
+and the page fits the viewport. The final topic includes the project name so
+parallel desktop/mobile bookings have distinct text.
+
+Commands, from the worktree root unless noted:
+
+- `mise exec -- npm ci`: 495 packages installed, zero vulnerabilities.
+- `mise exec -- npm run build --workspace frontend`: passed (both RED and GREEN).
+- From `backend`,
+  `mise exec -- .\mvnw.cmd --batch-mode --no-transfer-progress -Pe2e clean package -DskipTests`:
+  `BUILD SUCCESS` for both builds.
+- To run only the owner scenarios with the existing isolated H2 harness, made a
+  temporary copy of `scripts/e2e.mjs` at `scripts/.cache-owner-e2e.mjs`, replacing
+  its Playwright arguments `'test'` with `'test', 'e2e/owner-meetings.spec.ts'`.
+  Ran `mise exec -- node scripts/.cache-owner-e2e.mjs`.
+  RED before owner rendering: `2 failed`, `2 passed (10.5s)`; both topic cases
+  failed at the owner card's `toBeVisible` assertion because the topic element
+  was absent. Both no-topic cases passed on the original owner implementation.
+  GREEN after conditional text rendering and rebuild: `4 passed (4.9s)`;
+  a direct rerun confirmed exit 0 and `4 passed (4.7s)`.
+  Both harness runs stopped the server and removed their temporary database.
+  The temporary harness was removed; no test-runner or CI changes are required.
+  Raw RED/GREEN logs are local ignored `.cache-topic6-*.log` files.
+- `mise exec -- npm run test --workspace frontend -- --run src/OwnerMeetings.test.tsx`:
+  all 3 existing owner tests passed, including API ordering, Moscow midnight,
+  loading/empty list, errors and explicit retry.
+- `git merge feat/meeting-topic`: already up to date before commit.
+- `git diff --check`: passed.
+
+The risk is limited to owner card text/layout. Reverting the owner rendering
+leaves persisted topics and guest booking intact; the #5 database rollback
+constraints above still apply to reverting the combined feature.
+
+`mise run lint:commit` passed after formatting the final test data expression:
+Prettier, ESLint, actionlint and Maven checkstyle (`0 Checkstyle violations`,
+`BUILD SUCCESS`).
