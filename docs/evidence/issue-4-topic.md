@@ -8,6 +8,12 @@ Executed on Linux on 2026-11-15 in the existing branch
 instruction authorized this correction. Tests below exercised that base plus
 the working-tree correction recorded here.
 
+Implementation SHA: `9de8432fb76ce51096f8f19ee392fda916144de6`
+(`fix: normalize topic whitespace consistently (#4)`). The RED runs used the
+base SHA above plus the new tests; the GREEN and complete checks used the
+production/test contents committed at this implementation SHA. This follow-up
+only records its SHA and the completed lint result.
+
 Topic policy: ECMAScript `String.trim()` on both sides, before counting the
 500 Unicode code points and before saving/sending. Its exact edge set is
 U+0009–U+000D, U+0020, U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029,
@@ -69,6 +75,8 @@ mise exec -- npm run test --workspace frontend -- --run src/MeetingCalendar.test
   ordinary booking without a topic. Isolated E2E server stopped and temporary
   database removed.
 - `git diff --check`: exit 0.
+- `mise run lint:commit`, 17:48:57 UTC: exit 0; ESLint, Prettier, actionlint
+  and offline Maven checkstyle passed (0 violations, `BUILD SUCCESS`).
 
 ## Combined integration verification
 
