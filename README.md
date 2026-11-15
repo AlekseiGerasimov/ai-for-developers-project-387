@@ -118,6 +118,21 @@ GitHub App и ключ подключаются владельцем отдел�
 Сохраните ссылки на оба запуска в исходном issue. Локальная проверка фильтров
 не заменяет эту проверку событий GitHub и доступности провайдера.
 
+Фактическая проверка 2026-11-15:
+
+- [Новое обращение #7](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/7)
+  получило разбор по коду и вопросы, состояние `needs-info`;
+  [запуск автотриажа успешен](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/actions/runs/43734703912).
+- [Контрольный готовый тикет #8](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/8)
+  создан с `ready-for-agent`: [все задания пропущены](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/actions/runs/43734706071),
+  вызова модели и комментария автотриажа нет; после проверки тикет закрыт.
+- [Ручной разбор исходного обращения](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/3#issuecomment-6897489545)
+  также завершился успешно. Код календаря не изменён.
+- После уточнения prompt [повторная проверка #9](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/9#issuecomment-6897550802)
+  подтвердила ровно один итоговый разбор с AI disclaimer и маркером;
+  [запуск успешен](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/actions/runs/43734962730).
+  Контрольный дубликат закрыт, исходный пример навигации остаётся в #7.
+
 ## Docker и публикация
 
 Сборка из корня репозитория и запуск с автоматическим стартом приложения:
