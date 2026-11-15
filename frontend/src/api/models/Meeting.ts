@@ -51,6 +51,10 @@ export interface Meeting {
      *
      */
     guestEmail: string;
+    /**
+     * Plain text topic, at most 500 Unicode code points; omitted when absent.
+     */
+    topic?: string;
 }
 
 /**
@@ -82,6 +86,7 @@ export function MeetingFromJSONTyped(json: any, ignoreDiscriminator: boolean): M
         'endsAt': (json['endsAt'] == null ? json['endsAt'] : parseDateTime(json['endsAt'])),
         'guestName': json['guestName'],
         'guestEmail': json['guestEmail'],
+        'topic': json['topic'] == null ? undefined : json['topic'],
     };
 }
 
@@ -102,5 +107,6 @@ export function MeetingToJSONTyped(value?: Meeting | null, ignoreDiscriminator: 
         'endsAt': value['endsAt'] == null ? value['endsAt'] : serializeDateTime(value['endsAt']),
         'guestName': value['guestName'],
         'guestEmail': value['guestEmail'],
+        'topic': value['topic'],
     };
 }

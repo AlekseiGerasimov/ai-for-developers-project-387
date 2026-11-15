@@ -1,10 +1,36 @@
-module.exports = function attempts(runs, current, number) {
-  return runs
-    .filter(
-      (r) =>
-        r.display_title === `OpenCode ${number}` &&
-        r.run_number <= current.run_number &&
-        ['issue_comment', 'pull_request_review_comment'].includes(r.event),
+module.exports = async function attempts(runs, current, number, jobsForRun) {
+  let count = 0
+  for (const run of runs) {
+    if (
+      run.display_title !== `OpenCode ${number}` ||
+      (run.run_number > current.run_number && current.run_attempt <= 1) ||
+      !['issue_comment', 'pull_request_review_comment'].includes(run.event)
     )
-    .reduce((sum, r) => sum + r.run_attempt, 0)
+      continue
+    // Include inherited admission when only failed jobs are rerun.
+    const jobs = await jobsForRun(run)
+    const admissions = jobs
+      .filter((job) => job.name === 'authorize')
+      .flatMap((job) => job.steps ?? [])
+      .filter((step) => step.name === 'Record admitted command')
+    // Older workflows have no marker. A started budget step proves admission;
+    // a successful guard alone also occurs for rejected commands.
+    const admitted = admissions.length
+      ? admissions.some((step) => step.conclusion === 'success')
+      : jobs.some(
+          (job) =>
+            job.name === 'opencode' &&
+            job.steps?.some(
+              (step) =>
+                step.name === 'Check PR budget' &&
+                (step.status === 'in_progress' ||
+                  (step.status === 'completed' &&
+                    step.conclusion !== 'skipped')),
+            ),
+        )
+    if (admitted) {
+      count += run.run_attempt
+    }
+  }
+  return count
 }

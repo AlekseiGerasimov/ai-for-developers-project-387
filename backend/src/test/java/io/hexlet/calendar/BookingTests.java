@@ -32,6 +32,59 @@ class BookingTests {
     @Autowired private javax.sql.DataSource dataSource;
 
     @Test
+    void bookingReturnsTrimmedTopicAsPlainTextInUpcomingList() throws Exception {
+        var response = postJson(mapper.writeValueAsString(java.util.Map.of(
+                "meetingTypeId", "00000000-0000-0000-0000-000000000001",
+                "startsAt", "2026-11-16T07:00:00Z", "guestName", "Guest", "guestEmail", "g@example.com",
+                "topic", "  <b>Обсудим проект</b>  ")));
+        assertEquals(201, response.statusCode());
+        assertEquals("<b>Обсудим проект</b>", mapper.readTree(response.body()).get("topic").asString());
+        assertEquals("[" + response.body() + "]", get().body());
+    }
+
+    @Test
+    void overlongTopicIsRejectedWithoutSaving() throws Exception {
+        for (var letter : java.util.List.of("Я", "𐐀")) {
+            var response = postTopic(" " + letter.repeat(501) + " ");
+            assertEquals(400, response.statusCode());
+            var body = mapper.readTree(response.body());
+            assertEquals("VALIDATION_ERROR", body.get("code").asString());
+            assertEquals("topic", body.get("fieldErrors").get(0).get("field").asString());
+            assertEquals("[]", get().body());
+        }
+    }
+
+    private HttpResponse<String> postTopic(String topic) throws Exception {
+        return postJson(mapper.writeValueAsString(java.util.Map.of(
+                "meetingTypeId", "00000000-0000-0000-0000-000000000001",
+                "startsAt", "2026-11-16T07:00:00Z", "guestName", "Guest", "guestEmail", "g@example.com",
+                "topic", topic)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Я", "𐐀"})
+    void maximumTrimmedTopicAcceptsUnicodeAndStillProtectsTakenSlot(String letter) throws Exception {
+        var topic = letter.repeat(500);
+        var response = postTopic(" " + topic + " ");
+        assertEquals(201, response.statusCode());
+        assertEquals(topic, mapper.readTree(response.body()).get("topic").asString());
+        assertEquals("[" + response.body() + "]", get().body());
+        var conflict = postTopic("Другая тема");
+        assertEquals(409, conflict.statusCode());
+        assertEquals("SLOT_TAKEN", mapper.readTree(conflict.body()).get("code").asString());
+        assertEquals(1, mapper.readTree(get().body()).size());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   ", "\t\n"})
+    void blankTopicCreatesMeetingWithoutTopic(String topic) throws Exception {
+        var response = postTopic(topic);
+        assertEquals(201, response.statusCode());
+        org.junit.jupiter.api.Assertions.assertFalse(mapper.readTree(response.body()).hasNonNull("topic"));
+        assertEquals("[" + response.body() + "]", get().body());
+    }
+
+    @Test
     void waitingRequestRechecksTimeAfterCalendarLockIsReleased() throws Exception {
         try (var holder = dataSource.getConnection();
                 var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
@@ -141,7 +194,7 @@ class BookingTests {
 
     @Test
     @Sql(statements = """
-            INSERT INTO meetings VALUES
+            INSERT INTO meetings (id, meeting_type_id, starts_at, ends_at, guest_name, guest_email) VALUES
             ('00000000-0000-0000-0000-000000000040','00000000-0000-0000-0000-000000000001',
               '2026-11-16T05:00:00Z','2026-11-16T05:20:00Z','Past','past@example.com'),
             ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000001',
@@ -194,7 +247,7 @@ class BookingTests {
 
     @Test
     void wrongJsonTypesAreRejectedWithoutSaving() throws Exception {
-        for (var field : java.util.List.of("startsAt", "guestName", "guestEmail")) {
+        for (var field : java.util.List.of("startsAt", "guestName", "guestEmail", "topic")) {
             for (var value : java.util.List.of(1794812400, 1794812400.0, true)) {
                 var input = new java.util.HashMap<String, Object>();
                 input.put("meetingTypeId", "00000000-0000-0000-0000-000000000001");
