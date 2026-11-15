@@ -61,6 +61,52 @@ class BookingTests {
                 "topic", topic)));
     }
 
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> topicEdges() {
+        return java.util.stream.Stream.of("\u00a0", "\u202f", "\ufeff",
+                "\t\n\u000b\f\r \u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007"
+                + "\u2008\u2009\u200a\u2028\u2029\u205f\u3000")
+                .flatMap(edge -> java.util.stream.Stream.of("x", "𐐀")
+                        .map(letter -> org.junit.jupiter.params.provider.Arguments.of(edge, letter)));
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.MethodSource("topicEdges")
+    void unicodeTopicEdgesAreTrimmedBeforeCodePointLimit(String edge, String letter) throws Exception {
+        var rejected = postTopic(edge + letter.repeat(501) + edge);
+        assertEquals(400, rejected.statusCode());
+        assertEquals("topic", mapper.readTree(rejected.body()).get("fieldErrors").get(0).get("field").asString());
+        assertEquals("[]", get().body());
+
+        var topic = letter.repeat(500);
+        var response = postTopic(edge + topic + edge);
+        assertEquals(201, response.statusCode());
+        assertEquals(topic, mapper.readTree(response.body()).get("topic").asString());
+        assertEquals("[" + response.body() + "]", get().body());
+
+        var ordinary = post("00000000-0000-0000-0000-000000000001", "2026-11-16T08:00:00Z");
+        assertEquals(201, ordinary.statusCode());
+        org.junit.jupiter.api.Assertions.assertFalse(mapper.readTree(ordinary.body()).hasNonNull("topic"));
+        assertEquals("[" + response.body() + "," + ordinary.body() + "]", get().body());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"\u00a0", "\u202f", "\ufeff"})
+    void unicodeWhitespaceOnlyTopicIsAbsentEvenBeyondRawLimit(String edge) throws Exception {
+        var response = postTopic(edge.repeat(501));
+        assertEquals(201, response.statusCode());
+        org.junit.jupiter.api.Assertions.assertFalse(mapper.readTree(response.body()).hasNonNull("topic"));
+        assertEquals("[" + response.body() + "]", get().body());
+    }
+
+    @Test
+    void topicKeepsInteriorWhitespaceAndNonEcmaScriptEdgeCharacters() throws Exception {
+        var topic = "\u001c\u0085\u200bТема\u00a0\u202f\ufeffвнутри\u200b\u0085\u001c";
+        var response = postTopic(" " + topic + " ");
+        assertEquals(201, response.statusCode());
+        assertEquals(topic, mapper.readTree(response.body()).get("topic").asString());
+        assertEquals("[" + response.body() + "]", get().body());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"Я", "𐐀"})
     void maximumTrimmedTopicAcceptsUnicodeAndStillProtectsTakenSlot(String letter) throws Exception {

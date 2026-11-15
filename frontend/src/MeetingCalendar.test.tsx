@@ -42,7 +42,7 @@ test('booking uses selected slot and restores confirmation after reload without 
         startsAt: '2026-11-17T06:00:00.000Z',
         guestName: 'Гость',
         guestEmail: 'Guest@example.com',
-        topic: '  <b>Тема разговора</b>  ',
+        topic: '<b>Тема разговора</b>',
       })
       return Response.json(
         {
@@ -183,6 +183,78 @@ async function fillBooking() {
     target: { value: 'Черновик темы' },
   })
 }
+
+test.each(['\u00a0', '\u202f', '\ufeff'])(
+  'topic trims Unicode edge %j before the code point limit and submission',
+  async (edge) => {
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST')
+        return Response.json(
+          {
+            id: 'saved',
+            meetingType: type,
+            ...availability.slots[0],
+            guestName: 'Гость',
+            guestEmail: 'Guest@example.com',
+            topic: '𐐀'.repeat(500),
+          },
+          { status: 201 },
+        )
+      return Response.json(url.endsWith('/slots') ? availability : type)
+    })
+    vi.stubGlobal('fetch', fetch)
+    openCalendar()
+    await fillBooking()
+    const input = screen.getByLabelText('Тема разговора (необязательно)')
+    fireEvent.change(input, {
+      target: { value: edge + '𐐀'.repeat(501) + edge },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }))
+    expect(screen.getByText('Введите не более 500 символов')).toBeVisible()
+    expect(
+      fetch.mock.calls.filter(([, init]) => init?.method === 'POST'),
+    ).toHaveLength(0)
+    fireEvent.change(input, {
+      target: { value: edge + '𐐀'.repeat(500) + edge },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }))
+    expect(await screen.findByText('Встреча подтверждена')).toBeVisible()
+    const posts = fetch.mock.calls.filter(([, init]) => init?.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0][1]?.body)).topic).toBe('𐐀'.repeat(500))
+  },
+)
+
+test.each(['\u00a0', '\u202f', '\ufeff'])(
+  'topic containing 501 Unicode spaces %j is submitted as absent',
+  async (edge) => {
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST')
+        return Response.json(
+          {
+            id: 'saved',
+            meetingType: type,
+            ...availability.slots[0],
+            guestName: 'Гость',
+            guestEmail: 'Guest@example.com',
+          },
+          { status: 201 },
+        )
+      return Response.json(url.endsWith('/slots') ? availability : type)
+    })
+    vi.stubGlobal('fetch', fetch)
+    openCalendar()
+    await fillBooking()
+    fireEvent.change(screen.getByLabelText('Тема разговора (необязательно)'), {
+      target: { value: edge.repeat(501) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить запись' }))
+    expect(await screen.findByText('Встреча подтверждена')).toBeVisible()
+    const posts = fetch.mock.calls.filter(([, init]) => init?.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(JSON.parse(String(posts[0][1]?.body))).not.toHaveProperty('topic')
+  },
+)
 
 test.each(['SLOT_TAKEN', 'SLOT_EXPIRED', 'INVALID_SLOT'])(
   'slot error %s reloads availability and retains guest fields',

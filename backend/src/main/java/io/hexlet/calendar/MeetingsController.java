@@ -22,6 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class MeetingsController implements MeetingsApi {
+    // ECMAScript String.trim(): the topic policy shared with useBooking.ts.
+    private static final String TOPIC_WHITESPACE =
+            "[\\x09-\\x0D\\x20\\xA0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]";
+    private static final java.util.regex.Pattern TOPIC_EDGES = java.util.regex.Pattern.compile(
+            "\\A" + TOPIC_WHITESPACE + "+|" + TOPIC_WHITESPACE + "+\\z");
     private record EmailAddress(@Email String value) { }
     private final JdbcTemplate jdbc;
     private final Clock clock;
@@ -60,7 +65,7 @@ public class MeetingsController implements MeetingsApi {
             }
             var name = input.getGuestName() == null ? "" : input.getGuestName().strip();
             var email = input.getGuestEmail() == null ? "" : input.getGuestEmail().strip();
-            var topic = input.getTopic() == null ? "" : input.getTopic().strip();
+            var topic = input.getTopic() == null ? "" : TOPIC_EDGES.matcher(input.getTopic()).replaceAll("");
             var errors = new ArrayList<FieldError>();
             if (topic.codePointCount(0, topic.length()) > 500) {
                 errors.add(new FieldError().field("topic").message("Введите не более 500 символов"));

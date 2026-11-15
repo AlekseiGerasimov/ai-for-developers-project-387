@@ -1,5 +1,75 @@
 # Meeting topic: implementation evidence
 
+## PR #13 correction: consistent Unicode edge trimming (#4)
+
+Executed on Linux on 2026-11-15 in the existing branch
+`opencode/issue3-20261115173432`, starting at
+`ce253eeb023007bec9c8cbd4ba0a3513e50072ec`. The user's explicit PR review
+instruction authorized this correction. Tests below exercised that base plus
+the working-tree correction recorded here.
+
+Topic policy: ECMAScript `String.trim()` on both sides, before counting the
+500 Unicode code points and before saving/sending. Its exact edge set is
+U+0009–U+000D, U+0020, U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029,
+U+202F, U+205F, U+3000 and U+FEFF. Empty results mean no topic. Interior
+whitespace is preserved; U+001C, U+0085 and U+200B are not trimmed. Java uses
+an explicit anchored character set; the client validates and sends the same
+trimmed value while retaining the original draft. Guest name/email rules
+are unchanged.
+
+### Actual RED → GREEN
+
+First added HTTP/JUnit regressions, before changing production code. The
+existing real HTTP/random-port Spring server and H2 seam was used throughout.
+From `backend`, ran this exact command before and after the fix:
+
+```sh
+mise exec -- sh ./mvnw --batch-mode --no-transfer-progress '-Dtest=BookingTests#unicodeTopicEdgesAreTrimmedBeforeCodePointLimit+unicodeWhitespaceOnlyTopicIsAbsentEvenBeyondRawLimit+topicKeepsInteriorWhitespaceAndNonEcmaScriptEdgeCharacters+bookingReturnsSavedMeetingAndUpcomingList' test
+```
+
+- **RED**, 17:43:04 UTC: exit 1, `Tests run: 13, Failures: 12, Errors: 0`,
+  `BUILD FAILURE`. Eight 500-code-point edge cases returned 400 instead of
+  201; three 501-whitespace-only cases returned 400 instead of 201; Java
+  `strip()` also incorrectly removed U+001C under the chosen policy. The
+  existing ordinary no-topic booking passed.
+- **GREEN**, 17:43:41 UTC: exit 0, `Tests run: 13, Failures: 0, Errors: 0`,
+  `BUILD SUCCESS`, using the same command and tests.
+- The limit matrix uses both `x` and supplementary `𐐀`, independently wraps
+  them in NBSP, U+202F, BOM and the remaining ECMAScript whitespace set,
+  rejects 501 with a `topic` field error and an empty GET list, and accepts
+  500 with the exact trimmed topic in POST/GET. Each accepted case then books
+  another free slot without a topic and checks both records in the HTTP list.
+- Separate HTTP cases cover 501 repetitions of each of NBSP/U+202F/BOM as
+  absent topics and preservation of interior and non-trimmable characters.
+  Existing empty/ASCII-blank/omitted-topic cases remain in the full suite.
+
+Also added client form/submission regressions before changing `useBooking.ts`:
+
+```sh
+mise exec -- npm run test --workspace frontend -- --run src/MeetingCalendar.test.tsx -t 'topic trims Unicode|topic containing 501'
+```
+
+- **RED**, 17:43:16 UTC: exit 1, 6 failed / 12 skipped: outgoing topics still
+  contained edge whitespace, and whitespace-only topics were sent as strings.
+- **GREEN**, 17:43:28 UTC: exit 0, 6 passed / 12 skipped. Each edge character
+  permits 500 supplementary code points, blocks 501 without POST, and omits
+  a 501-whitespace-only topic from the outgoing JSON.
+
+### Full verification
+
+- `mise exec -- npx prettier --write frontend/src/MeetingCalendar.test.tsx frontend/src/useBooking.ts`:
+  formatted the two changed TypeScript files.
+- First `mise run check` invocation ended with tool error
+  `Unknown: ChildProcess.kill`; no overall success is claimed for that attempt.
+  No check process remained. Re-ran `mise run check` to get a complete result.
+- Completed `mise run check`, 17:48 UTC, exit 0: generated contract/SDK
+  freshness, ESLint, Prettier, actionlint, Java checkstyle (0 violations),
+  TypeScript/Vite build, **29 frontend tests**, **68 JVM tests** (0 failures or
+  errors), and **14 desktop/mobile E2E tests** passed. Browser coverage includes
+  ordinary booking without a topic. Isolated E2E server stopped and temporary
+  database removed.
+- `git diff --check`: exit 0.
+
 ## Combined integration verification
 
 On `675a9b69a503dba31d23af46b13aac067bb7d9e9`, `mise run check` passed:

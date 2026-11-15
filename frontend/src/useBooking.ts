@@ -77,8 +77,9 @@ export function useBooking(id: string, refresh: () => void) {
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(session.email.trim())
     )
       fields.guestEmail = 'Введите корректный email до 254 символов'
-    if ([...session.topic.trim()].length > 500)
-      fields.topic = 'Введите не более 500 символов'
+    // ECMAScript trim policy is also used by MeetingsController for direct API callers.
+    const topic = session.topic.trim()
+    if ([...topic].length > 500) fields.topic = 'Введите не более 500 символов'
     setErrors(fields)
     if (Object.keys(fields).length) return
     sending.current = true
@@ -93,7 +94,7 @@ export function useBooking(id: string, refresh: () => void) {
           startsAt: slot.startsAt,
           guestName: session.name,
           guestEmail: session.email,
-          topic: session.topic || undefined,
+          topic: topic || undefined,
         },
       })
       if (response.raw.status !== 201)
