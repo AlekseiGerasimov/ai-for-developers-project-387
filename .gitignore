@@ -1,0 +1,16 @@
+.idea/
+node_modules/
+target/
+dist/
+.generated/
+.cache/
+.mise.local.toml
+*.log
+data/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+.codex/config.toml
+.codex/auth.json
