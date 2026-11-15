@@ -7,7 +7,13 @@ const run = (n, event = 'issue_comment', attempt = 1, pr = 42) => ({
   event,
   run_attempt: attempt,
 })
-const authorized = async () => [{ name: 'authorize', conclusion: 'success' }]
+const authorized = async () => [
+  {
+    name: 'authorize',
+    conclusion: 'success',
+    steps: [{ name: 'Record admitted command', conclusion: 'success' }],
+  },
+]
 const count = (runs, number, attempt = 1, jobs = authorized) =>
   attempts(runs, { run_number: number, run_attempt: attempt }, 42, jobs)
 
@@ -29,12 +35,18 @@ test('cancellations still consume an attempt', async () => {
   assert.equal(await count([{ ...run(1), conclusion: 'cancelled' }], 1), 1)
 })
 
-test('rejected comments cannot exhaust a trusted human budget', async () => {
+test('successful guards rejecting commands cannot exhaust a trusted human budget', async () => {
   assert.equal(
     await count([run(1), run(2), run(3), run(4)], 4, 1, async (r) => [
       {
         name: 'authorize',
-        conclusion: r.run_number === 4 ? 'success' : 'skipped',
+        conclusion: 'success',
+        steps: [
+          {
+            name: 'Record admitted command',
+            conclusion: r.run_number === 4 ? 'success' : 'skipped',
+          },
+        ],
       },
     ]),
     1,
@@ -46,6 +58,30 @@ test('rerunning an old workflow cannot bypass newer admitted requests', async ()
     4,
   )
 })
+test('legacy admitted runs retain their spent budget across the policy upgrade', async () => {
+  assert.equal(
+    await count([run(1), run(2), run(3), run(4)], 4, 1, async (r) => [
+      { name: 'authorize', conclusion: 'success' },
+      {
+        name: 'opencode',
+        steps: [
+          {
+            name: 'Check PR budget',
+            status: r.run_number === 4 ? 'in_progress' : 'completed',
+            conclusion:
+              r.run_number === 4
+                ? null
+                : r.run_number === 1
+                  ? 'skipped'
+                  : 'success',
+          },
+        ],
+      },
+    ]),
+    3,
+  )
+})
+
 test('unavailable authorization history fails closed', async () => {
   await assert.rejects(
     count([run(1)], 1, 1, async () => {

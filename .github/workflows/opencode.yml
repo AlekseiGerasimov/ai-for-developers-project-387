@@ -54,6 +54,10 @@ jobs:
               }
             }
             core.setOutput('allowed', 'true');
+      # Stable history marker used by pr-budget.cjs; guard success alone can reject.
+      - name: Record admitted command
+        if: steps.guard.outputs.allowed == 'true'
+        run: echo 'Command admitted'
 
   opencode:
     outputs:
