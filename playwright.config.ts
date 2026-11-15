@@ -6,7 +6,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL,
     browserName: 'chromium',
-    trace: 'retain-on-failure',
+    trace: process.env.CI ? 'on' : 'retain-on-failure',
   },
   projects: [
     { name: 'desktop', use: { viewport: { width: 1280, height: 800 } } },

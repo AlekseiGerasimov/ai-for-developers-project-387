@@ -17,6 +17,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record exact tested commit
+        run: git rev-parse HEAD > tested-sha.txt
       - uses: jdx/mise-action@v3
         with:
           version: 2026.11.4
@@ -40,6 +45,15 @@ jobs:
           key: ${{ runner.os }}-openapi-${{ hashFiles('openapitools.json') }}
       - run: mise run install
       - name: Test autotriage filters
-        run: mise exec -- node --test .github/scripts/triage-policy.test.cjs
+        run: mise exec -- node --test .github/scripts/triage-policy.test.cjs .github/scripts/pr-budget.test.cjs
       - run: mise exec -- npx playwright install --with-deps chromium
       - run: mise run check
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            tested-sha.txt
+            test-results/
+          if-no-files-found: error
