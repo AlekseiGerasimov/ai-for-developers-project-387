@@ -1,0 +1,107 @@
+name: OpenCode
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  authorize:
+    if: >-
+      github.event.comment.user.type == 'User' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      (contains(github.event.comment.body, '/oc') || contains(github.event.comment.body, '/opencode'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      allowed: ${{ steps.guard.outputs.allowed }}
+    steps:
+      - name: Validate command and PR source
+        id: guard
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { comment, issue, pull_request, repository } = context.payload;
+            // Match whole commands, not /octopus or a URL containing /oc.
+            if (!/(^|\s)\/(oc|opencode)(?=\s|$)/i.test(comment.body)) {
+              core.setOutput('allowed', 'false');
+              return;
+            }
+            const number = issue?.number ?? pull_request?.number;
+            const { data: ticket } = await github.rest.issues.get({
+              ...context.repo, issue_number: number,
+            });
+            if (ticket.pull_request) {
+              const { data: pr } = await github.rest.pulls.get({
+                ...context.repo, pull_number: number,
+              });
+              if (pr.head.repo?.id !== repository.id) {
+                core.notice('Fork PRs cannot invoke the agent, including via trusted comments.');
+                core.setOutput('allowed', 'false');
+                return;
+              }
+            }
+            core.setOutput('allowed', 'true');
+
+  opencode:
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: opencode-${{ github.repository }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Verify project context
+        shell: bash
+        run: |
+          for skill in to-spec to-tickets implement-spec; do
+            test -s ".agents/skills/$skill/SKILL.md"
+          done
+          test -s AGENTS.md
+          test -s docs/agents/issue-tracker.md
+          test -s docs/agents/domain.md
+          test -s docs/agents/triage-labels.md
+          {
+            echo 'Tracker: https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues'
+            echo 'Skills: to-spec, to-tickets, implement-spec (.agents/skills/)'
+            echo 'Checks: mise run check; tests: mise run test; lint: mise run lint'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify provider secret
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo '::error::Add OPENAI_API_KEY in repository Settings > Secrets and variables > Actions.'
+            exit 1
+          fi
+      - uses: jdx/mise-action@v3
+        with:
+          version: 2026.11.4
+      - run: mise run install
+      - run: mise exec -- npx playwright install --with-deps chromium
+      - name: Run agent
+        # Snapshot of the official latest action; update after reviewing upstream changes.
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          model: openai/gpt-6.1-sol
+          mentions: /opencode,/oc
+          share: false
