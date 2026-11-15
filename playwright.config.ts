@@ -3,6 +3,9 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  reporter: process.env.CI
+    ? [['list'], ['json', { outputFile: 'test-results/results.json' }]]
+    : 'list',
   use: {
     baseURL: process.env.E2E_BASE_URL,
     browserName: 'chromium',

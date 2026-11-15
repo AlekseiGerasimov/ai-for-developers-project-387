@@ -13,6 +13,7 @@ import {
 type Session = {
   name: string
   email: string
+  topic: string
   state: 'draft' | 'uncertain' | 'success'
   meeting?: Meeting
 }
@@ -31,6 +32,7 @@ export function useBooking(id: string, refresh: () => void) {
         return {
           name: saved.name,
           email: saved.email,
+          topic: typeof saved.topic === 'string' ? saved.topic : '',
           state:
             saved.state === 'success'
               ? 'success'
@@ -42,7 +44,7 @@ export function useBooking(id: string, refresh: () => void) {
     } catch {
       /* Ignore unavailable or invalid browser storage. */
     }
-    return { name: '', email: '', state: 'draft' }
+    return { name: '', email: '', topic: '', state: 'draft' }
   })
   const [pending, setPending] = useState(false)
   const sending = useRef(false)
@@ -75,6 +77,9 @@ export function useBooking(id: string, refresh: () => void) {
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(session.email.trim())
     )
       fields.guestEmail = 'Введите корректный email до 254 символов'
+    // ECMAScript trim policy is also used by MeetingsController for direct API callers.
+    const topic = session.topic.trim()
+    if ([...topic].length > 500) fields.topic = 'Введите не более 500 символов'
     setErrors(fields)
     if (Object.keys(fields).length) return
     sending.current = true
@@ -89,6 +94,7 @@ export function useBooking(id: string, refresh: () => void) {
           startsAt: slot.startsAt,
           guestName: session.name,
           guestEmail: session.email,
+          topic: topic || undefined,
         },
       })
       if (response.raw.status !== 201)
@@ -142,6 +148,7 @@ export function useBooking(id: string, refresh: () => void) {
     message,
     setName: (name: string) => save({ ...session, name }),
     setEmail: (email: string) => save({ ...session, email }),
+    setTopic: (topic: string) => save({ ...session, topic }),
     submit,
     restart: () => {
       save({ ...session, state: 'draft', meeting: undefined })

@@ -154,7 +154,7 @@ class CalendarTests {
 
     @Test
     @Sql(statements = """
-            INSERT INTO meetings VALUES ('00000000-0000-0000-0000-000000000010',
+            INSERT INTO meetings (id, meeting_type_id, starts_at, ends_at, guest_name, guest_email) VALUES ('00000000-0000-0000-0000-000000000010',
               '00000000-0000-0000-0000-000000000003', '2026-11-16T07:00:00Z',
               '2026-11-16T08:00:00Z', 'Guest', 'guest@example.com');
             """)

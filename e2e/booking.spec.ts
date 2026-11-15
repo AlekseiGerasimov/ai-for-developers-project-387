@@ -7,6 +7,7 @@ test('two guests with a stale selection recover from conflict without losing fie
   const title = '𐐀'.repeat(100)
   const guestName = '𐐀'.repeat(100)
   const guestEmail = `${'g'.repeat(64)}@${'e'.repeat(63)}.example.com`
+  const topic = '<b>Обсудим проект</b>\n' + '𐐀'.repeat(470)
   const expectNoHorizontalOverflow = async () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -34,6 +35,19 @@ test('two guests with a stale selection recover from conflict without losing fie
   await expectNoHorizontalOverflow()
   await page.getByLabel('Имя', { exact: true }).fill(guestName)
   await page.getByLabel('Email', { exact: true }).fill(guestEmail)
+  await page.getByLabel('Тема разговора (необязательно)').fill('я'.repeat(501))
+  await page.getByRole('button', { name: 'Подтвердить запись' }).click()
+  await expect(page.getByText('Введите не более 500 символов')).toBeVisible()
+  await expect(page.getByLabel('Имя', { exact: true })).toHaveValue(guestName)
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue(
+    guestEmail,
+  )
+  await expect(page.getByLabel('Тема разговора (необязательно)')).toHaveValue(
+    'я'.repeat(501),
+  )
+  await page
+    .getByLabel('Тема разговора (необязательно)')
+    .fill('  ' + topic + '  ')
 
   const secondContext = await browser.newContext({
     baseURL: testInfo.project.use.baseURL,
@@ -50,6 +64,9 @@ test('two guests with a stale selection recover from conflict without losing fie
     await second.getByRole('button', { name: '10:00–10:20' }).click()
     await second.getByLabel('Имя', { exact: true }).fill('Второй гость')
     await second.getByLabel('Email', { exact: true }).fill('Second@Example.com')
+    await second
+      .getByLabel('Тема разговора (необязательно)')
+      .fill('Тема второго гостя')
 
     const posts: string[] = []
     page.on('request', (request) => {
@@ -65,10 +82,17 @@ test('two guests with a stale selection recover from conflict without losing fie
     ).toBeVisible()
     await expect(page.getByText(guestName, { exact: true })).toBeVisible()
     await expect(page.getByText(guestEmail, { exact: true })).toBeVisible()
+    await expect(
+      page.getByText('Тема разговора: ' + topic, { exact: true }),
+    ).toBeVisible()
+    await expect(page.locator('b')).toHaveCount(0)
     await expectNoHorizontalOverflow()
     await page.reload()
     await expect(
       page.getByRole('heading', { name: 'Встреча подтверждена' }),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Тема разговора: ' + topic, { exact: true }),
     ).toBeVisible()
     await expectNoHorizontalOverflow()
     expect(posts).toHaveLength(1)
@@ -92,9 +116,15 @@ test('two guests with a stale selection recover from conflict without losing fie
     await expect(second.getByLabel('Email', { exact: true })).toHaveValue(
       'Second@Example.com',
     )
+    await expect(
+      second.getByLabel('Тема разговора (необязательно)'),
+    ).toHaveValue('Тема второго гостя')
     await second.getByRole('button', { name: 'Подтвердить запись' }).click()
     await expect(
       second.getByRole('heading', { name: 'Встреча подтверждена' }),
+    ).toBeVisible()
+    await expect(
+      second.getByText('Тема разговора: Тема второго гостя', { exact: true }),
     ).toBeVisible()
     expect(
       await second.evaluate(
@@ -104,4 +134,52 @@ test('two guests with a stale selection recover from conflict without losing fie
   } finally {
     await secondContext.close()
   }
+})
+
+test('an older browser draft can book without a topic and restore its confirmation', async ({
+  page,
+}, testInfo) => {
+  const id = '00000000-0000-0000-0000-000000000001'
+  await page.goto('/meetings')
+  await page.evaluate(
+    (id) =>
+      sessionStorage.setItem(
+        `booking:${id}`,
+        JSON.stringify({
+          name: 'Прежний гость',
+          email: 'legacy@example.com',
+          state: 'draft',
+        }),
+      ),
+    id,
+  )
+  await page.goto(`/meetings/${id}`)
+  await page
+    .getByRole('group', { name: 'Выберите день' })
+    .getByRole('button')
+    .nth(testInfo.project.name === 'desktop' ? 10 : 11)
+    .click()
+  await page.getByRole('button', { name: '14:00–14:20' }).click()
+  await expect(page.getByLabel('Имя', { exact: true })).toHaveValue(
+    'Прежний гость',
+  )
+  await expect(page.getByLabel('Тема разговора (необязательно)')).toHaveValue(
+    '',
+  )
+  await page.getByRole('button', { name: 'Подтвердить запись' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Встреча подтверждена' }),
+  ).toBeVisible()
+  await expect(page.getByText('Тема разговора:', { exact: false })).toHaveCount(
+    0,
+  )
+  // Confirmation data saved by the previous SDK also has no topic.
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { name: 'Встреча подтверждена' }),
+  ).toBeVisible()
+  await expect(page.getByText('Прежний гость', { exact: true })).toBeVisible()
+  await expect(page.getByText('Тема разговора:', { exact: false })).toHaveCount(
+    0,
+  )
 })

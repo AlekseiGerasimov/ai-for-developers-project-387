@@ -22,6 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class MeetingsController implements MeetingsApi {
+    // ECMAScript String.trim(): the topic policy shared with useBooking.ts.
+    private static final String TOPIC_WHITESPACE =
+            "[\\x09-\\x0D\\x20\\xA0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]";
+    private static final java.util.regex.Pattern TOPIC_EDGES = java.util.regex.Pattern.compile(
+            "\\A" + TOPIC_WHITESPACE + "+|" + TOPIC_WHITESPACE + "+\\z");
     private record EmailAddress(@Email String value) { }
     private final JdbcTemplate jdbc;
     private final Clock clock;
@@ -60,7 +65,11 @@ public class MeetingsController implements MeetingsApi {
             }
             var name = input.getGuestName() == null ? "" : input.getGuestName().strip();
             var email = input.getGuestEmail() == null ? "" : input.getGuestEmail().strip();
+            var topic = input.getTopic() == null ? "" : TOPIC_EDGES.matcher(input.getTopic()).replaceAll("");
             var errors = new ArrayList<FieldError>();
+            if (topic.codePointCount(0, topic.length()) > 500) {
+                errors.add(new FieldError().field("topic").message("Введите не более 500 символов"));
+            }
             if (name.isEmpty() || name.codePointCount(0, name.length()) > 100) {
                 errors.add(new FieldError().field("guestName").message("Введите от 1 до 100 символов"));
             }
@@ -70,9 +79,12 @@ public class MeetingsController implements MeetingsApi {
             }
             if (!errors.isEmpty()) { throw new ApiValidationException(errors); }
             var saved = new Meeting().id(UUID.randomUUID()).meetingType(type).startsAt(start).endsAt(end)
-                    .guestName(name).guestEmail(email);
-            jdbc.update("INSERT INTO meetings VALUES (?, ?, ?, ?, ?, ?)", saved.getId(), type.getId(),
-                    start, end, saved.getGuestName(), saved.getGuestEmail());
+                    .guestName(name).guestEmail(email).topic(topic.isEmpty() ? null : topic);
+            jdbc.update("""
+                    INSERT INTO meetings (id, meeting_type_id, starts_at, ends_at, guest_name, guest_email, topic)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, saved.getId(), type.getId(), start, end, saved.getGuestName(), saved.getGuestEmail(),
+                    saved.getTopic());
             return saved;
         });
         return ResponseEntity.status(201).body(meeting);
@@ -90,7 +102,8 @@ public class MeetingsController implements MeetingsApi {
                                 .durationMinutes(row.getInt("duration_minutes")))
                         .startsAt(row.getObject("starts_at", OffsetDateTime.class).withOffsetSameInstant(ZoneOffset.UTC))
                         .endsAt(row.getObject("ends_at", OffsetDateTime.class).withOffsetSameInstant(ZoneOffset.UTC))
-                        .guestName(row.getString("guest_name")).guestEmail(row.getString("guest_email")),
+                        .guestName(row.getString("guest_name")).guestEmail(row.getString("guest_email"))
+                        .topic(row.getString("topic")),
                 clock.instant().atOffset(ZoneOffset.UTC)));
     }
 }

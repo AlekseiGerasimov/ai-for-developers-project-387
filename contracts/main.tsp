@@ -102,6 +102,7 @@ model CreateMeeting {
   startsAt: utcDateTime;
   guestName: string;
   guestEmail: string;
+  @doc("Optional plain text, trimmed before validating at most 500 Unicode code points. Blank means absent.") topic?: string;
 }
 
 model Meeting {
@@ -111,6 +112,7 @@ model Meeting {
   endsAt: utcDateTime;
   @minLength(1) @maxLength(100) guestName: string;
   @maxLength(254) guestEmail: string;
+  @doc("Plain text topic, at most 500 Unicode code points; omitted when absent.") topic?: string;
 }
 
 @error model SlotTaken {

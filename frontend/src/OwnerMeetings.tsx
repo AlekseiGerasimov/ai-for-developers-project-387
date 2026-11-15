@@ -75,6 +75,11 @@ export default function OwnerMeetings() {
                 </Text>
                 <Text>{meeting.guestName}</Text>
                 <Text>{meeting.guestEmail}</Text>
+                {meeting.topic?.trim() && (
+                  <Text style={{ whiteSpace: 'pre-wrap' }}>
+                    Тема разговора: {meeting.topic}
+                  </Text>
+                )}
               </Paper>
             ))}
           </Stack>
