@@ -1,5 +1,123 @@
 # Meeting topic: implementation evidence
 
+## PR #13 correction: machine-readable browser and review evidence (#4)
+
+Executed on Linux on 2026-11-15 in the existing branch
+`opencode/issue3-20261115173432`. Before editing, fetched `main` and merged
+`7e4fbf1353ee88f0b9e260579597f2fa72bd38dd` with:
+
+```sh
+git fetch origin main
+git fetch --unshallow origin
+git merge origin/main -m "chore: sync agent budget policy (#11)"
+```
+
+The first merge attempt was refused because the checkout was shallow; after
+fetching history, the ordinary merge succeeded without conflicts. Merge commit:
+`2558013d5368cf4717eca8b4b9647701c7561baf`. The runs below exercised that commit
+plus the working-tree changes in `fix: preserve browser and review evidence (#4)`.
+
+### Browser result and successful traces
+
+`playwright.config.ts` now enables both list and JSON reporters when `CI` is set.
+JSON is written to `test-results/results.json`; successful traces remain enabled
+with `trace: 'on'`. The existing `Save browser evidence` step already uploads
+`test-results/` and root `tested-sha.txt` together as `browser-<tested SHA>`.
+
+```sh
+CI=1 mise run test:e2e
+```
+
+Exit 0: frontend build and isolated E2E JAR build succeeded; **14 browser tests
+passed**. The isolated server stopped and its temporary database was removed.
+JSON `stats.startTime` was `2026-11-15T17:54:16.531Z`, duration `14281.899` ms.
+
+Validated the generated files and every per-test result/trace with this command
+(exit 0), rather than relying on the terminal's pass message:
+
+```sh
+mise exec -- node --input-type=commonjs -e '
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const report = JSON.parse(fs.readFileSync("test-results/results.json", "utf8"));
+const lastRun = JSON.parse(fs.readFileSync("test-results/.last-run.json", "utf8"));
+assert.equal(report.errors.length, 0);
+assert.deepEqual([report.stats.expected, report.stats.unexpected, report.stats.flaky, report.stats.skipped], [14, 0, 0, 0]);
+assert.deepEqual(lastRun, { status: "passed", failedTests: [] });
+const counts = {};
+let traces = 0;
+function visit(suite) {
+  for (const spec of suite.specs ?? []) {
+    assert.equal(spec.ok, true);
+    for (const test of spec.tests) {
+      assert.equal(test.status, "expected");
+      assert.equal(test.results.length, 1);
+      counts[test.projectName] = (counts[test.projectName] ?? 0) + 1;
+      for (const result of test.results) {
+        assert.equal(result.status, "passed");
+        assert.equal(result.errors.length, 0);
+        const trace = result.attachments.find(a => a.name === "trace");
+        assert.ok(trace && fs.statSync(trace.path).size > 0);
+        traces++;
+      }
+    }
+  }
+  for (const child of suite.suites ?? []) visit(child);
+}
+for (const suite of report.suites) visit(suite);
+assert.deepEqual(counts, { desktop: 7, mobile: 7 });
+assert.equal(traces, 14);
+console.log(JSON.stringify({ stats: report.stats, result: lastRun, projects: counts, traces }, null, 2));
+'
+```
+
+Observed: `expected=14`, `unexpected=0`, `flaky=0`, `skipped=0`, no report errors;
+`.last-run.json` has `status="passed"`, `failedTests=[]`. Both desktop and mobile
+have seven scenarios, all `expected` with a single `passed` result and a nonempty
+trace ZIP: **14 successful traces**. Each project includes conflict recovery,
+legacy draft/no-topic booking, calendar navigation, two catalog journeys, and
+owner journeys both with and without a topic. These are results of this agent
+session; publication of the next head's Actions artifact is a subsequent CI run.
+
+### Review context
+
+The existing `pr.json` attachment now includes `reviewComments`, collected with
+`gh api --paginate --slurp repos/$REPO/pulls/$PR/comments`, preserving inline
+paths, lines, diff hunks, author, permalink and thread identifiers. References
+are collected from the PR body, conversation comments, reviews and inline
+comments, so the owner's actual `/pull/14` approval link is followed. Linked
+items use `gh issue view` with `gh pr view` fallback, retaining the existing
+`issues.json` attachment shape. Repository visibility must be `PUBLIC` before
+reading current inline comments or any linked issue/PR. Private and unknown
+repositories remain unavailable without fetching their contents.
+
+```sh
+mise exec -- node --test .github/scripts/*.test.cjs
+```
+
+Exit 0: **14 passed, 0 failed, 0 skipped**. Four new context regressions cover
+paginated inline comments/replies and issue-to-PR fallback, deduplication and
+comment-body links, private/unknown repositories, private current PR rejection,
+and explicit unavailable public links. Existing budget and triage tests pass.
+
+Also ran a temporary Node probe using real `gh pr view 13 --repo
+AlekseiGerasimov/ai-for-developers-project-387 --json title,body,comments,reviews`
+as input to `collectReviewContext`. Assertions passed: **1 real inline comment**
+(the Unicode trimming review on `MeetingsController.java`), **6 linked items**,
+**0 unavailable**, and the actual owner comment
+[`6898641935` approving PR #14](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/pull/14#issuecomment-6898641935)
+present in `issues.json`. The temporary probe directory was removed.
+
+### Formatting and final checks
+
+- `mise exec -- npx prettier --check playwright.config.ts .github/scripts/review-context.cjs .github/scripts/review-context.test.cjs docs/evidence/issue-4-topic.md`:
+  exit 0, all matched files formatted.
+- `mise run lint:commit`: exit 0 at 17:55 UTC; ESLint, repository-wide Prettier,
+  actionlint and offline Maven checkstyle passed (0 violations, `BUILD SUCCESS`).
+- `git diff --check`: exit 0.
+- `git merge-base --is-ancestor 7e4fbf1353ee88f0b9e260579597f2fa72bd38dd HEAD`:
+  exit 0, confirming the merged main ancestry in this PR branch.
+
 ## PR #13 correction: consistent Unicode edge trimming (#4)
 
 Executed on Linux on 2026-11-15 in the existing branch
