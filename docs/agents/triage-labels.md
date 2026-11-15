@@ -12,4 +12,10 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-Edit the "Label in our tracker" column to match whatever vocabulary you actually use.
+Prepared specifications and tickets from `to-spec` / `to-tickets` receive
+`ready-for-agent` at creation. Autotriage excludes that label, `ready-for-human`,
+and `wontfix`. Incoming requests start unlabeled or with `needs-triage`; the
+preliminary pass uses `needs-info` for unanswered questions or `needs-triage`
+for a maintainer decision. It does not promote requests to implementation.
+
+The category roles use GitHub's existing `bug` and `enhancement` labels.

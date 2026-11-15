@@ -12,7 +12,8 @@ Use `--body-file` for multiline issue and comment bodies in PowerShell.
 Verified on 2026-11-15: authenticated as `AlekseiGerasimov`, repository access
 confirmed with `gh repo view`, Issues enabled, repository permission `ADMIN`.
 Label definitions are preserved in `docs/agents/triage-labels.md`; labels must
-be configured separately in this repository.
+be configured separately in this repository. The five canonical state labels
+were created/verified in this repository on 2026-11-15.
 
 In a new environment, verify authentication with `gh auth status` and the target
 with `gh repo view AlekseiGerasimov/ai-for-developers-project-387`.
@@ -20,6 +21,29 @@ with `gh repo view AlekseiGerasimov/ai-for-developers-project-387`.
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
 ## Conventions
+
+### Incoming requests and prepared work
+
+Incoming requests have no state label or `needs-triage`. The `issues: opened`
+autotriage only accepts human authors with `OWNER`, `MEMBER`, or `COLLABORATOR`
+association. Other authors can be reviewed manually by a trusted maintainer via
+`/oc`; their new issues do not automatically call the model.
+
+`to-spec` and `to-tickets` must apply `ready-for-agent` **at issue creation**.
+These are prepared artifacts, not incoming requests. Autotriage skips
+`ready-for-agent`, `ready-for-human`, and `wontfix`, including when an old
+`needs-triage` label is also present. It rechecks live labels before calling the
+model. A specification can be prepared before final human approval; the label
+alone does not authorize implementation.
+
+Before `implement-spec`, read the source request, full discussion, specification,
+child tickets, native blocking dependencies, and the human's final approval
+comment in the source request. That comment must explicitly reference the
+specification and ticket list. Add its permalink to the implementation PR.
+An agent's summary of chat approval is not that human-authored comment.
+Material scope or behavior changes require a new human decision in the request.
+
+### Commands
 
 - **Create an issue**: `gh issue create --repo AlekseiGerasimov/ai-for-developers-project-387 --title "..." --body-file <path>`. Use a UTF-8 file for multiline bodies in PowerShell.
 - **Read an issue**: `gh issue view <number> --json number,title,body,labels,comments`.

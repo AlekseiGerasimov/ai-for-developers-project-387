@@ -39,5 +39,7 @@ jobs:
           path: .cache/openapi-generator
           key: ${{ runner.os }}-openapi-${{ hashFiles('openapitools.json') }}
       - run: mise run install
+      - name: Test autotriage filters
+        run: mise exec -- node --test .github/scripts/triage-policy.test.cjs
       - run: mise exec -- npx playwright install --with-deps chromium
       - run: mise run check
