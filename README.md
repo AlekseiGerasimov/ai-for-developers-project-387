@@ -176,7 +176,8 @@ GitHub App и ключ подключаются владельцем отдел�
 [спецификация #4](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/4),
 [запись с темой #5](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/5)
 → [показ владельцу #6](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/6).
-Итоговое подтверждение человеком ожидается в исходном обращении.
+[Итоговое согласование человеком спецификации и обоих тикетов](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/3#issuecomment-6897584732)
+опубликовано в исходном обращении до начала реализации.
 
 Проверка фильтров локально: `mise exec -- node --test .github/scripts/triage-policy.test.cjs`.
 Проверка workflow: `mise exec -- actionlint -shellcheck= -pyflakes=`.
