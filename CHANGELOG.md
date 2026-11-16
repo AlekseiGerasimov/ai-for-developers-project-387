@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/compare/v0.2.0...v0.3.0) (2026-11-16)
+
+
+### Features
+
+* meeting topics ([#4](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/4)) ([bcc04b8](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/bcc04b85c138f172060bb3226bb9708cdcd88eab))
+* регулярный аудит зависимостей с агентом ([#17](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/17)) ([#18](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/18)) ([aa9f8da](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/aa9f8dac1519263643c20e3ecd93068e8b56fba2))
+
+
+### Bug Fixes
+
+* address topic performance and agent budget review ([#4](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/4), [#11](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/11)) ([dbfa786](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/dbfa786d30c4319ab6441b9e66d5d0946dcedf70))
+* allow unattended access to audit reports ([#17](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/17)) ([#19](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/19)) ([b041314](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/b041314786bdf899d6156c15683b100f15146909))
+* enforce admission-aware PR agent budget ([#11](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/11)) ([7e4fbf1](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/7e4fbf1353ee88f0b9e260579597f2fa72bd38dd))
+* publish autotriage as a single action reply ([#3](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/3)) ([0a715ae](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/0a715aebf67647c861605db806472388beba87eb))
+* publish budget reports with dedicated PR permission ([#11](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/issues/11)) ([c891313](https://github.com/AlekseiGerasimov/ai-for-developers-project-387/commit/c891313726b5f94067ac94cabb761faae9c83453))
+
 ## [0.2.0](https://github.com/AlekseiGerasimov/ai-for-developers-project-386/compare/v0.1.0...v0.2.0) (2026-11-15)
 
 
