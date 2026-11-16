@@ -22,11 +22,13 @@ test('both comment channels and reruns exhaust the same PR budget', async () => 
   assert.equal(await count(runs, 2), 3)
   assert.ok((await count([...runs, run(3)], 3)) > 3)
 })
-test('other PRs, future runs and automatic review cannot consume this budget', async () => {
+test('other PRs, unadmitted runs and automatic review cannot consume this budget', async () => {
   assert.equal(
     await count(
       [run(1), run(2, 'pull_request'), run(3, 'issue_comment', 1, 43), run(9)],
       3,
+      1,
+      async (r) => (r.run_number === 9 ? [] : authorized()),
     ),
     1,
   )
@@ -58,6 +60,28 @@ test('rerunning an old workflow cannot bypass newer admitted requests', async ()
     4,
   )
 })
+test('late admission of an older run cannot bypass three spent attempts', async () => {
+  const runs = [run(1), run(2), run(3, 'pull_request_review_comment'), run(4)]
+  const admitted = new Set()
+  const jobs = async (r) => [
+    {
+      name: 'authorize',
+      steps: admitted.has(r.run_number)
+        ? [{ name: 'Record admitted command', conclusion: 'success' }]
+        : [],
+    },
+  ]
+  for (const [number, expected] of [
+    [2, 1],
+    [3, 2],
+    [4, 3],
+    [1, 4],
+  ]) {
+    admitted.add(number)
+    assert.equal(await count(runs, number, 1, jobs), expected)
+  }
+})
+
 test('legacy admitted runs retain their spent budget across the policy upgrade', async () => {
   assert.equal(
     await count([run(1), run(2), run(3), run(4)], 4, 1, async (r) => [

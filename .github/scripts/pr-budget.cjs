@@ -1,9 +1,9 @@
-module.exports = async function attempts(runs, current, number, jobsForRun) {
+// Keep the current-run argument for queued workflows and reruns of older versions.
+module.exports = async function attempts(runs, _current, number, jobsForRun) {
   let count = 0
   for (const run of runs) {
     if (
       run.display_title !== `OpenCode ${number}` ||
-      (run.run_number > current.run_number && current.run_attempt <= 1) ||
       !['issue_comment', 'pull_request_review_comment'].includes(run.event)
     )
       continue

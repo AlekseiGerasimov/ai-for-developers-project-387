@@ -24,9 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeetingsController implements MeetingsApi {
     // ECMAScript String.trim(): the topic policy shared with useBooking.ts.
     private static final String TOPIC_WHITESPACE =
-            "[\\x09-\\x0D\\x20\\xA0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]";
-    private static final java.util.regex.Pattern TOPIC_EDGES = java.util.regex.Pattern.compile(
-            "\\A" + TOPIC_WHITESPACE + "+|" + TOPIC_WHITESPACE + "+\\z");
+            "\t\n\u000b\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007"
+            + "\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
     private record EmailAddress(@Email String value) { }
     private final JdbcTemplate jdbc;
     private final Clock clock;
@@ -65,7 +64,7 @@ public class MeetingsController implements MeetingsApi {
             }
             var name = input.getGuestName() == null ? "" : input.getGuestName().strip();
             var email = input.getGuestEmail() == null ? "" : input.getGuestEmail().strip();
-            var topic = input.getTopic() == null ? "" : TOPIC_EDGES.matcher(input.getTopic()).replaceAll("");
+            var topic = trimTopic(input.getTopic());
             var errors = new ArrayList<FieldError>();
             if (topic.codePointCount(0, topic.length()) > 500) {
                 errors.add(new FieldError().field("topic").message("Введите не более 500 символов"));
@@ -88,6 +87,15 @@ public class MeetingsController implements MeetingsApi {
             return saved;
         });
         return ResponseEntity.status(201).body(meeting);
+    }
+
+    private static String trimTopic(String value) {
+        if (value == null) { return ""; }
+        var start = 0;
+        var end = value.length();
+        while (start < end && TOPIC_WHITESPACE.indexOf(value.charAt(start)) >= 0) { start++; }
+        while (end > start && TOPIC_WHITESPACE.indexOf(value.charAt(end - 1)) >= 0) { end--; }
+        return value.substring(start, end);
     }
 
     @Override
