@@ -54,6 +54,22 @@ class BookingTests {
         }
     }
 
+    @Test
+    void overlongTopicWithInteriorWhitespaceIsRejectedPromptly() throws Exception {
+        // Leave margin below the calendar's five-second lock timeout.
+        var response = org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2),
+                () -> postTopic("a" + " ".repeat(20_000) + "b"));
+        assertEquals(400, response.statusCode());
+        var body = mapper.readTree(response.body());
+        assertEquals("VALIDATION_ERROR", body.get("code").asString());
+        assertEquals("topic", body.get("fieldErrors").get(0).get("field").asString());
+        assertEquals("[]", get().body());
+
+        var ordinary = post("00000000-0000-0000-0000-000000000001", "2026-11-16T07:00:00Z");
+        assertEquals(201, ordinary.statusCode());
+        assertEquals("[" + ordinary.body() + "]", get().body());
+    }
+
     private HttpResponse<String> postTopic(String topic) throws Exception {
         return postJson(mapper.writeValueAsString(java.util.Map.of(
                 "meetingTypeId", "00000000-0000-0000-0000-000000000001",
